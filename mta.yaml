@@ -11,9 +11,9 @@ modules:
   - name: CAPDeployment3-db
   - name: CAPDeployment3-auth
   provides:
-  - name: srv-api
+  - name: srv-api ## Use in destination content
     properties:
-      srv-url: ${default-url}
+      srv-url: ${default-url} ## Use in destination content
   parameters:
     buildpack: nodejs_buildpack
   build-parameters:
@@ -52,7 +52,49 @@ modules:
     - npm install
     - npm run build:cf
     supported-platforms: []
-    
+
+- name: CAPDeployment3-destinations
+  type: com.sap.application.content
+  requires:
+    - name: CAPDeployment3-auth
+      parameters:
+        service-key:
+          name: CAPDeployment3-auth-key
+    - name: CAPDeployment3-repo-host
+      parameters:
+        service-key:
+          name: CAPDeployment3-repo-host-key
+    - name: srv-api
+    - name: CAPDeployment3-destination-service
+      parameters:
+        content-target: true
+  parameters:
+    content:
+      instance:
+        destinations:
+
+          - Authentication: OAuth2UserTokenExchange
+            Name: my_api # Use in App Router!!!
+            TokenServiceInstanceName: CAPDeployment3-auth
+            TokenServiceKeyName: CAPDeployment3-auth-key
+            URL: '~{srv-api/srv-url}'
+            sap.cloud.service: ch.agilita.myapp ## Must match sap.cloud in app manifest.json
+
+          - Name: my_repo ## Any Name
+            ServiceInstanceName: CAPDeployment3-repo-host
+            ServiceKeyName: CAPDeployment3-repo-host-key
+            sap.cloud.service: ch.agilita.myapp ## Must match sap.cloud in app manifest.json
+
+          - Authentication: OAuth2UserTokenExchange
+            Name: my_uaa ## Any Name
+            ServiceInstanceName: CAPDeployment3-auth
+            ServiceKeyName: CAPDeployment3-auth-key
+            sap.cloud.service: ch.agilita.myapp ## Must match sap.cloud in app manifest.json
+
+        existing_destinations_policy: update
+  build-parameters:
+    no-source: true
+
 resources:
 - name: CAPDeployment3-db
   type: com.sap.xs.hdi-container
@@ -68,17 +110,18 @@ resources:
     path: ./xs-security.json
     service: xsuaa
     service-plan: application
+
 - name: CAPDeployment3-repo-host
   type: org.cloudfoundry.managed-service
   parameters:
     service: html5-apps-repo
-    service-name: CAPDeployment3-html5-srv
     service-plan: app-host
+
 - name: CAPDeployment3-destination-service
   type: org.cloudfoundry.managed-service
   parameters:
     config:
-      HTML5Runtime_enabled: false
+      HTML5Runtime_enabled: true
       init_data:
         instance:
           destinations:
